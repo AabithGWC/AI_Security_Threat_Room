@@ -52,16 +52,21 @@ Alongside the core agent, this project ships an integrated **AI Security Auditor
 
 ---
 
-## 🏗️ Tech Stack
+## 🏗️ Project Structure
 
-| Layer | Technology |
-|---|---|
-| **Backend** | Python 3.11+, FastAPI 0.115, Uvicorn |
-| **AI / LLM** | Ollama Cloud — MiniMax M3 (`minimax-m3:cloud`) |
-| **Data** | Domo AppDB REST API |
-| **Frontend** | Vanilla HTML/CSS/JS (zero frameworks) |
-| **Streaming** | Server-Sent Events (SSE) |
-| **Config** | python-dotenv |
+The codebase is organized into **two clear folders**:
+
+```
+AI_Security_Auditor_Agent/
+├── backend/          # Python 3.14 + FastAPI + Ollama backend
+│   ├── app.py        # FastAPI server entry point
+│   ├── agent.py      # DomoAppDBAgent & tool calling engine
+│   ├── security_auditor/ # Security audit engine & routes
+│   └── requirements.txt  # Python backend dependencies
+└── frontend/         # React + Vite + Tailwind CSS frontend
+    ├── src/          # React components (Agent Chat & Security Auditor)
+    └── package.json  # Frontend npm packages
+```
 
 ---
 
@@ -69,49 +74,30 @@ Alongside the core agent, this project ships an integrated **AI Security Auditor
 
 ### Prerequisites
 - Python 3.11+
-- A [Domo Developer Token](https://developer.domo.com/)
-- An [Ollama API Key](https://ollama.com/)
+- Node.js 18+ & npm
+- A Domo Developer Token & Ollama API Key
 
-### 1. Clone the repository
+### 1. Run the Backend (`backend/`)
 ```bash
-git clone https://github.com/your-org/domo-appdb-agent.git
-cd domo-appdb-agent
-```
-
-### 2. Create and activate a virtual environment
-```bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# macOS / Linux
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure environment variables
-Create a `.env` file in the project root:
-```env
-OLLAMA_API_KEY=your_ollama_api_key
-DOMO_DEVELOPER_TOKEN=your_domo_developer_token
-DOMO_BASE_URL=https://your-instance.domo.com
-DOMO_COLLECTION_ID=your_default_collection_id
-```
-
-### 5. Run the server
-```bash
+cd backend
+python -m pip install -r requirements.txt
 python app.py
 ```
+*The FastAPI backend runs on **http://127.0.0.1:8002***.
 
-The application starts at **http://127.0.0.1:8000**
+### 2. Run the Frontend (`frontend/`)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*The React frontend runs on **http://localhost:5173***.
 
-| URL | Description |
+| Interface | URL |
 |---|---|
-| `http://127.0.0.1:8000/` | Chat UI |
-| `http://127.0.0.1:8000/security-ui/auditor.html` | AI Security Auditor |
+| **React App (Dev Mode)** | `http://localhost:5173/` |
+| **FastAPI Backend & Served React App** | `http://127.0.0.1:8002/` |
+| **FastAPI OpenAPI / Swagger Docs** | `http://127.0.0.1:8002/docs` |
 
 ---
 
