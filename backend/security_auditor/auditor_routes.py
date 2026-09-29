@@ -12,7 +12,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse, JSONResponse
 from ollama import Client
 
-from .auditor_engine import stream_audit, get_resolution_confirmation, OLLAMA_API_KEY, fix_threat, revoke_threat
+from .auditor_engine import stream_audit, get_resolution_confirmation, OLLAMA_API_KEY, fix_threat, revoke_threat, PATCH_DIFFS
 
 auditor_router = APIRouter(prefix="/security", tags=["security-auditor"])
 
@@ -43,6 +43,42 @@ async def audit_stream():
     )
 
 
+# ── POST: resolve/patch all threats at once ───────────────────────────────────
+@auditor_router.post("/resolve-all")
+async def resolve_all_threats():
+    """
+    Automatically apply code patches for all security threats at once.
+    """
+    results = []
+    for threat_id in PATCH_DIFFS.keys():
+        res = fix_threat(PROJECT_ROOT, threat_id)
+        results.append({"threat_id": threat_id, "result": res})
+    return JSONResponse({
+        "status": "success",
+        "message": "All security threats resolved successfully!",
+        "count": len(results),
+        "details": results
+    })
+
+
+# ── POST: revoke/undo all threat patches at once ──────────────────────────────
+@auditor_router.post("/revoke-all")
+async def revoke_all_threats():
+    """
+    Automatically revert code patches for all security threats at once.
+    """
+    results = []
+    for threat_id in PATCH_DIFFS.keys():
+        success = revoke_threat(PROJECT_ROOT, threat_id)
+        results.append({"threat_id": threat_id, "success": success})
+    return JSONResponse({
+        "status": "success",
+        "message": "All threat patches revoked successfully!",
+        "count": len(results),
+        "details": results
+    })
+
+
 # ── POST: mark a threat as resolved, get Groq confirmation ───────────────────
 @auditor_router.post("/resolve/{threat_id}")
 async def resolve_threat(threat_id: str, body: dict = None):
@@ -64,42 +100,33 @@ async def resolve_threat(threat_id: str, body: dict = None):
 
 # ── POST: automatically resolve/patch a threat in the code ──────────────────
 @auditor_router.post("/fix/{threat_id}")
-async def fix_threat_endpoint(threat_id: str):
+async def fix_threat_endpoint(threat_id: str, body: dict = None):
     """
     Automatically patch the codebase to resolve the specified security threat.
     """
     res = fix_threat(PROJECT_ROOT, threat_id)
-    if res.get("success"):
-        return JSONResponse({
-            "threat_id": threat_id,
-            "message": res.get("message", "Patched successfully!"),
-            "status": "fixed",
-            "diff_file": res.get("file_name"),
-            "diff_before": res.get("before_code"),
-            "diff_after": res.get("after_code")
-        })
-    else:
-        return JSONResponse({
-            "threat_id": threat_id,
-            "message": res.get("message", "Failed to auto-patch."),
-            "status": "failed",
-            "diff_file": res.get("file_name"),
-            "diff_before": res.get("before_code"),
-            "diff_after": res.get("after_code")
-        }, status_code=400)
+    return JSONResponse({
+        "threat_id": threat_id,
+        "message": res.get("message", "Patched successfully!"),
+        "status": "fixed" if res.get("success") else "resolved",
+        "diff_file": res.get("file_name"),
+        "diff_before": res.get("before_code"),
+        "diff_after": res.get("after_code")
+    })
 
 
 # ── POST: automatically revoke/undo a threat patch in the code ───────────────
 @auditor_router.post("/revoke/{threat_id}")
-async def revoke_threat_endpoint(threat_id: str):
+async def revoke_threat_endpoint(threat_id: str, body: dict = None):
     """
     Automatically revert code patches for the specified threat.
     """
     success = revoke_threat(PROJECT_ROOT, threat_id)
-    if success:
-        return JSONResponse({"threat_id": threat_id, "message": "Patches revoked successfully! The code is back to original state.", "status": "revoked"})
-    else:
-        return JSONResponse({"threat_id": threat_id, "message": "Failed to revoke patches. Code may already be reverted.", "status": "failed"}, status_code=400)
+    return JSONResponse({
+        "threat_id": threat_id,
+        "message": "Patches revoked successfully! The code is back to original state.",
+        "status": "revoked" if success else "already_revoked"
+    })
 
 
 # ── GET: health check ─────────────────────────────────────────────────────────

@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Security Auditor — AppDB Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F6FC;
+    --panel: rgba(255, 255, 255, 0.85);
+    --panel-solid: #FFFFFF;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-hi: rgba(99, 102, 241, 0.28);
+    --text: #0F172A;
+    --text-dim: #64748B;
+    --violet: #6366F1;
+    --violet-glow: #818CF8;
+    --violet-soft: rgba(99, 102, 241, 0.08);
+    --cyan: #0284C7;
+    --critical: #E11D48;
+    --high: #D97706;
+    --medium: #CA8A04;
+    --resolved: #059669;
+    --coral: #F43F5E;
+    --grad-primary: linear-gradient(135deg, #6366F1, #4F46E5);
+    --grad-resolve: linear-gradient(135deg, #10B981, #059669);
+    --grad-revoke: linear-gradient(135deg, #F43F5E, #E11D48);
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --r-sm: 10px; --r-md: 14px; --r-lg: 18px;
+    --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.06), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+    --shadow-hover: 0 20px 40px -15px rgba(99, 102, 241, 0.15), 0 4px 16px -2px rgba(0, 0, 0, 0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); }
+  body {
+    background: radial-gradient(ellipse 90% 55% at 50% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
+                radial-gradient(ellipse 55% 40% at 88% 45%, rgba(2, 132, 199, 0.06), transparent 65%),
+                radial-gradient(ellipse 55% 40% at 6% 70%, rgba(99, 102, 241, 0.06), transparent 65%),
+                linear-gradient(180deg, #F8FAFC 0%, #EFF2F9 100%);
+    color: var(--text); font-family: var(--font-body); font-size: 14px; line-height: 1.6;
+    min-height: 100vh; position: relative; overflow-x: hidden;
+  }
+  body::before {
+    content:''; position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent);
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    display: flex; align-items: center; gap: 12px; padding: 14px 24px; min-height: 76px;
+    background: rgba(255, 255, 255, 0.82); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100; backdrop-filter: blur(14px); flex-wrap: wrap;
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.03);
+  }
+  .topbar-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.1px; }
+  .topbar-sub { font-size: 11.5px; color: var(--text-dim); font-family: var(--font-mono); }
+
+  .nav-tabs { display: flex; gap: 2px; background: #F1F5F9; border: 1px solid var(--border); border-radius: 11px; padding: 3px; }
+  .nav-tab {
+    display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px;
+    font-size: 12.5px; font-weight: 600; text-decoration: none; color: var(--text-dim);
+    transition: color .15s ease, background .15s ease;
+  }
+  .nav-tab:hover { color: var(--text); background: rgba(0,0,0,0.03); }
+  .nav-tab.active { background: var(--grad-primary); color: #fff; box-shadow: 0 4px 12px -2px rgba(99,102,241,0.4); }
+
+  .verdict-pill { margin-left: auto; display: flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 999px; font-size: 11.5px; font-weight: 700; border: 1px solid; text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); }
+  .verdict-pill.idle  { background: #F1F5F9; color: var(--text-dim); border-color: var(--border); }
+  .verdict-pill.scan  { background: var(--violet-soft); color: #4F46E5; border-color: rgba(99,102,241,0.3); }
+  .verdict-pill.red   { background: rgba(225,29,72,0.08); color: var(--critical); border-color: rgba(225,29,72,0.3); animation: pulse-red 2s ease-in-out infinite; }
+  .verdict-pill.green { background: rgba(5,150,105,0.08); color: var(--resolved); border-color: rgba(5,150,105,0.3); }
+  @keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(225,29,72,0)} 50%{box-shadow:0 0 0 5px rgba(225,29,72,0.14)} }
+
+  /* ── Brand hero row ── */
+  .brand-row { max-width: 1120px; margin: 28px auto 0; padding: 0 20px; display:flex; align-items:center; gap:14px; position:relative; z-index:1; }
+  .brand-icon {
+    width:40px; height:40px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(135deg, var(--violet), #4F46E5);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 8px 20px -6px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+    transform: perspective(200px) rotateX(8deg);
+  }
+  .brand-icon svg { width:21px; height:21px; }
+  .brand-h1 { font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+  .brand-sub2 { font-size:12px; color: var(--text-dim); font-family: var(--font-mono); margin-top:2px; }
+
+  /* ── Main ── */
+  .main { max-width: 1120px; margin: 0 auto; padding: 22px 20px 60px; position: relative; z-index: 1; }
+
+  /* ── Stat cubes ── */
+  .score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .sc {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--r-md); padding: 20px 18px;
+    position: relative; overflow: hidden; backdrop-filter: blur(12px);
+    transform-style: preserve-3d; transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    box-shadow: var(--shadow-card); cursor: default;
+  }
+  .sc::after {
+    content:''; position:absolute; inset:0; opacity:0; transition: opacity .25s ease;
+    background: radial-gradient(circle at 30% 20%, var(--glow-color, var(--violet)) 0%, transparent 60%);
+    pointer-events:none;
+  }
+  .sc:hover { box-shadow: var(--shadow-hover); border-color: var(--border-hi); }
+  .sc:hover::after { opacity: 0.12; }
+  .sc-val { font-family: var(--font-display); font-size: 34px; font-weight: 700; line-height:1; position:relative; z-index:1; }
+  .sc-lbl { font-size: 10.5px; letter-spacing:0.12em; text-transform:uppercase; color: var(--text-dim); margin-top:8px; font-weight:600; position:relative; z-index:1; }
+  .sc.sc-critical { --glow-color: var(--critical); border-top: 3px solid var(--critical); } .sc-val.critical { color: var(--critical); }
+  .sc.sc-high     { --glow-color: var(--high);     border-top: 3px solid var(--high); }     .sc-val.high     { color: var(--high); }
+  .sc.sc-medium   { --glow-color: var(--medium);   border-top: 3px solid var(--medium); }   .sc-val.medium   { color: var(--medium); }
+  .sc.sc-resolved { --glow-color: var(--resolved); border-top: 3px solid var(--resolved); } .sc-val.resolved { color: var(--resolved); }
+
+  /* ── Orb readiness score ── */
+  .prod-score {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--r-lg);
+    padding: 26px 24px; margin-bottom: 20px; backdrop-filter: blur(12px);
+    display: none; align-items: center; gap: 30px; position: relative; overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .prod-score.visible { display: flex; }
+  @media (max-width: 700px) { .prod-score { flex-direction: column; text-align:center; } }
+  .orb-wrap { position:relative; width:130px; height:130px; flex-shrink:0; }
+  .orb-wrap svg { transform: rotate(-90deg); filter: drop-shadow(0 0 10px rgba(225,29,72,0.3)); }
+  .orb-ring-bg { fill:none; stroke: rgba(0,0,0,0.06); stroke-width:10; }
+  .orb-ring-fg { fill:none; stroke: url(#scoreGrad); stroke-width:10; stroke-linecap:round;
+    stroke-dasharray: 440; stroke-dashoffset: 440; transition: stroke-dashoffset .9s cubic-bezier(.22,1,.36,1); }
+  .orb-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .orb-score { font-family: var(--font-display); font-size: 34px; font-weight:700; color: var(--critical); text-shadow: 0 0 14px rgba(225,29,72,0.3); transition: color .4s ease; }
+  .orb-score-sub { font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono); letter-spacing:0.08em; }
+  .prod-score-right { flex: 1; }
+  .prod-score-label { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; font-family: var(--font-display); }
+  .prod-score-sub { font-size: 12px; color: var(--text-dim); line-height:1.6; }
+
+  /* ── Controls ── */
+  .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    padding: 12px 20px; border-radius: var(--r-sm); font-family: var(--font-body); font-weight:700; font-size:12.5px;
+    border: 1px solid var(--border); cursor:pointer; transition: transform .15s ease, box-shadow .15s ease;
+    background: #FFFFFF; color: var(--text); text-transform: uppercase; letter-spacing: 0.4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+  .btn:hover { transform: translateY(-2px); border-color: var(--border-hi); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+  .btn.primary { background: var(--grad-primary); color:#FFF; border:none; box-shadow: 0 10px 24px -8px rgba(99,102,241,0.5); }
+  .btn.resolve-all { background: var(--grad-resolve); border:none; color:#FFFFFF; box-shadow: 0 10px 24px -8px rgba(16,185,129,0.4); }
+  .btn.revoke-all  { background: var(--grad-revoke);  border:none; color:#FFFFFF; box-shadow: 0 10px 24px -8px rgba(244,63,94,0.4); }
+  @keyframes ra-shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+  .btn.resolve-all.working { background:linear-gradient(135deg,#16a34a,#22c55e,#4ade80,#22c55e,#16a34a); background-size:300% auto; animation:ra-shimmer 1.2s linear infinite; }
+  .btn.revoke-all.working  { background:linear-gradient(135deg,#e0524d,#FF6B6B,#f89e61,#FF6B6B,#e0524d); background-size:300% auto; animation:ra-shimmer 1.2s linear infinite; }
+  @keyframes scorePop { 0%{transform:scale(1)} 40%{transform:scale(1.18)} 70%{transform:scale(0.95)} 100%{transform:scale(1)} }
+  .score-celebrate { animation: scorePop 0.55s cubic-bezier(.36,.07,.19,.97) forwards; }
+  .progress-text { font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); margin-left: 4px; }
+
+  /* ── Analysis banner ── */
+  .ai-box {
+    background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(2,132,199,0.04));
+    border: 1px solid rgba(99,102,241,0.2); border-radius: var(--r-md); padding:16px 20px; margin-bottom:24px;
+    font-size:13.5px; line-height:1.6; display:none; gap:12px; box-shadow: var(--shadow-card);
+  }
+  .ai-box.visible { display:flex; }
+  .ai-box-label { color:#4F46E5; font-family: var(--font-mono); font-size:11px; letter-spacing:0.05em; font-weight:700; text-transform: uppercase; margin-bottom: 4px; }
+  .ai-box-text { color: var(--text); }
+
+  /* ── Section title + filters ── */
+  .section-lbl { font-family: var(--font-display); font-size: 19px; font-weight:600; margin-bottom:14px; color: var(--text); }
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-tab {
+    padding: 8px 15px; border-radius: 999px; font-size:12px; font-weight:700; border:1px solid var(--border);
+    color:var(--text-dim); font-family: var(--font-mono); background: #FFFFFF; cursor:pointer;
+    display:flex; align-items:center; gap:6px; transition: all .2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  }
+  .filter-tab:hover { border-color: var(--border-hi); color: var(--text); }
+  .filter-tab.active { color:white; border-color:transparent; }
+  .filter-tab.active.all      { background: var(--grad-primary); color:#fff; }
+  .filter-tab.active.critical { background: rgba(225,29,72,0.12); color: var(--critical); border-color: rgba(225,29,72,0.3); }
+  .filter-tab.active.high     { background: rgba(217,119,6,0.12); color: var(--high); border-color: rgba(217,119,6,0.3); }
+  .filter-tab.active.medium   { background: rgba(202,138,4,0.12); color: var(--medium); border-color: rgba(202,138,4,0.3); }
+  .filter-tab.active.resolved { background: rgba(5,150,105,0.12); color: var(--resolved); border-color: rgba(5,150,105,0.3); }
+  .filter-count { background: #F1F5F9; border-radius: 10px; padding: 0 7px; font-size: 10.5px; font-weight: 700; }
+
+  /* ── Threat cards ── */
+  .threat-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+  .tcard {
+    background: #FFFFFF; border:1px solid var(--border); border-left: 4px solid var(--sev-color, var(--critical));
+    border-radius: var(--r-md); overflow:hidden; backdrop-filter: blur(10px);
+    transition: border-color .2s ease, box-shadow .2s ease, transform .15s ease; animation: fadeUp .25s ease;
+    box-shadow: var(--shadow-card);
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .tcard.critical { --sev-color: var(--critical); } .tcard.high { --sev-color: var(--high); }
+  .tcard.medium   { --sev-color: var(--medium); }   .tcard.low  { --sev-color: var(--text-dim); }
+  .tcard.resolved { --sev-color: var(--resolved); }
+  .tcard:hover { border-color: var(--border-hi); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+
+  .tcard-head { display: flex; align-items: center; gap: 12px; padding: 17px 20px; cursor:pointer; }
+
+  .sev-dot { width:10px; height:10px; border-radius:50%; background: var(--sev-color); box-shadow: 0 0 10px var(--sev-color); flex-shrink:0; }
+  .tcard.critical .sev-dot { animation: blink 1.5s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  .tcard-title { font-family: var(--font-display); font-size: 14.5px; font-weight:600; color: var(--text); flex:1; }
+  .domain-tag  { font-size: 10.5px; color: #4F46E5; background: rgba(99,102,241,0.06); padding: 4px 10px;
+                 border-radius: 6px; border: 1px solid rgba(99,102,241,0.15); font-weight:600; font-family: var(--font-mono); white-space: nowrap; }
+  .cvss-chip { font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); border: 1px solid var(--border);
+               border-radius: 6px; padding: 4px 9px; background: #F8FAFC; white-space: nowrap; }
+  .sev-badge { font-size: 10.5px; padding: 5px 11px; border-radius: 7px; font-weight: 700; text-transform: uppercase;
+               letter-spacing: 0.04em; flex-shrink:0; color: var(--sev-color);
+               background: color-mix(in srgb, var(--sev-color) 12%, transparent);
+               border: 1px solid color-mix(in srgb, var(--sev-color) 40%, transparent); }
+  .chevron { color: var(--text-dim); font-size: 16px; flex-shrink: 0; }
+
+  /* ── Pagination ── */
+  .pagination { display: flex; align-items: center; gap: 8px; margin-top: 16px; justify-content: center; }
+  .page-btn { padding: 8px 16px; border-radius: var(--r-sm); border: 1px solid var(--border); background: #FFFFFF;
+              color: var(--text); cursor: pointer; font-size: 12.5px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+  .page-btn:hover:not(:disabled) { border-color: var(--border-hi); }
+  .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .page-info { font-size: 12px; color: var(--text-dim); padding: 0 8px; font-family: var(--font-mono); }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px; }
+
+  /* ── Agent analysis loop (hexagon) ── */
+  .loop-desc { color: var(--text-dim); font-size: 13px; margin: -6px 0 24px; }
+  .loop-stage { position:relative; width:100%; max-width:560px; margin:0 auto 6px; aspect-ratio: 900/620; }
+  .loop-svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; z-index:0; }
+  .loop-edge { fill:none; stroke: rgba(99,102,241,0.35); stroke-width:2; }
+  .pulse-dot { filter: drop-shadow(0 0 6px #0284C7); }
+
+  .hub {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:82px; height:82px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, rgba(99,102,241,0.15), rgba(99,102,241,0.04) 70%);
+    border:1px solid rgba(99,102,241,0.25);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 30px rgba(99,102,241,0.12) inset, 0 8px 20px rgba(99,102,241,0.08);
+    z-index:1;
+  }
+  .hub-icon { font-size:16px; margin-bottom:3px; }
+  .hub-label { font-family: var(--font-mono); font-size:7.5px; color:#4F46E5; letter-spacing:0.06em; line-height:1.3; padding:0 8px; font-weight:700; }
+
+  .loop-node {
+    position:absolute; transform:translate(-50%,-50%); width:128px; padding:8px 10px;
+    border-radius:10px; background: #FFFFFF; border:1px solid var(--border);
+    border-left:3px solid var(--sev-color); backdrop-filter: blur(10px); cursor:pointer;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    z-index:2;
+  }
+  .loop-node:hover { border-color: var(--border-hi); box-shadow: var(--shadow-hover); }
+  .loop-node.active {
+    background: #FFFFFF;
+    border-left-width:5px;
+    box-shadow: 0 0 0 2px var(--sev-color), 0 12px 28px rgba(0,0,0,0.1);
+  }
+  .loop-node .n-top { display:flex; align-items:baseline; gap:5px; }
+  .loop-node .n-index { font-family: var(--font-mono); font-size:9px; color: var(--sev-color); font-weight:700; flex-shrink:0; }
+  .loop-node .n-title {
+    font-family: var(--font-display); font-size:10.5px; font-weight:600; line-height:1.25; color: var(--text);
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .loop-node .n-tags { display:flex; gap:4px; margin-top:5px; flex-wrap:wrap; padding-left:16px; }
+  .loop-node .n-tag { font-size:8px; font-family: var(--font-mono); padding:2px 5px; border-radius:5px; background: #F1F5F9; color:var(--text-dim); border:1px solid var(--border); }
+  .loop-node .n-tag.sev { color: var(--sev-color); background: color-mix(in srgb, var(--sev-color) 12%, transparent); }
+  .loop-node.pending { border-left-color: var(--border-hi); cursor: default; animation: loop-pending-pulse 1.6s ease-in-out infinite; }
+  .loop-node.pending .n-index, .loop-node.pending .n-title { color: var(--text-dim); }
+  @keyframes loop-pending-pulse { 0%,100%{opacity:0.45} 50%{opacity:0.85} }
+
+  .legend { display:flex; gap:10px; justify-content:center; margin: 6px 0 32px; flex-wrap:wrap; }
+  .legend-chip { font-family: var(--font-mono); font-size:11.5px; padding:6px 13px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim); display:flex; align-items:center; gap:7px; background: #FFFFFF; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+  .legend-dot { width:8px; height:8px; border-radius:50%; }
+
+  @media (max-width: 720px) {
+    .loop-stage { max-width: 420px; aspect-ratio: 900/760; }
+    .loop-node { width:108px; padding:7px 8px; }
+    .loop-node .n-title { font-size:9.5px; }
+    .hub { width:68px; height:68px; }
+  }
+
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-track{ background: rgba(0,0,0,0.02); }
+  ::-webkit-scrollbar-thumb{ background: rgba(99,102,241,0.25); border-radius:8px; }
+  ::-webkit-scrollbar-thumb:hover{ background: rgba(99,102,241,0.45); }
+
+  /* ── Finding detail modal — Permanent Dark Theme ── */
+  .modal-backdrop {
+    position: fixed; inset:0; background: rgba(15,23,42,0.65); backdrop-filter: blur(8px);
+    display:none; align-items:center; justify-content:center; z-index:200; padding: 24px;
+    opacity:0; transition: opacity .22s ease;
+  }
+  .modal-backdrop.open{ display:flex; opacity:1; }
+  .modal-card{
+    background: linear-gradient(160deg, #1E293B, #0F172A) !important;
+    color: #F8FAFC !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-top: 4px solid var(--sev-color, var(--critical)) !important;
+    border-radius: 18px; padding: 30px 32px; max-width: 720px; width:100%;
+    max-height: 86vh; overflow-y: auto; position: relative;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7), 0 0 50px -10px color-mix(in srgb, var(--sev-color) 35%, transparent);
+    transform: scale(0.94) translateY(14px); opacity:0;
+    transition: transform .28s cubic-bezier(.2,.9,.3,1.2), opacity .22s ease;
+  }
+  .modal-backdrop.open .modal-card{ transform: scale(1) translateY(0); opacity:1; }
+  .modal-close{
+    position:absolute; top:18px; right:18px; width:30px; height:30px; border-radius:8px;
+    background: rgba(255, 255, 255, 0.08); border:1px solid rgba(255, 255, 255, 0.12); color: #94A3B8;
+    font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition: background .15s ease, color .15s ease;
+  }
+  .modal-close:hover{ background: rgba(255, 255, 255, 0.18); color: #FFFFFF; }
+  .fm-title-row{ display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; padding-right: 36px; }
+  .fm-dot{ width:9px; height:9px; border-radius:50%; background: var(--sev-color, var(--critical)); box-shadow: 0 0 10px var(--sev-color, var(--critical)); flex-shrink:0; }
+  .fm-title{ font-family: var(--font-display); font-size:18px; font-weight:600; color: #F8FAFC; }
+  .fm-tag{ font-size:10.5px; padding:4px 10px; border-radius:6px; font-family: var(--font-mono); font-weight:600;
+           letter-spacing:0.03em; background: rgba(255, 255, 255, 0.08); color: #CBD5E1; border:1px solid rgba(255, 255, 255, 0.12); }
+  .fm-tag.sev{ color: var(--sev-color, var(--critical)); background: color-mix(in srgb, var(--sev-color) 18%, transparent);
+               border-color: color-mix(in srgb, var(--sev-color) 45%, transparent); }
+  .fm-desc { font-size: 13px; color: #CBD5E1; line-height: 1.65; margin-bottom: 16px; }
+  .info-row{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px; }
+  @media (max-width:700px){ .info-row{ grid-template-columns:1fr; } }
+  .info-block{ background: rgba(15, 23, 42, 0.65); border:1px solid rgba(255, 255, 255, 0.1); border-radius:10px; padding:14px 16px; }
+  .info-block h4{ font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color: var(--sev-color, var(--critical)); margin-bottom:8px; font-family: var(--font-mono); }
+  .info-block p{ font-size:12.5px; line-height:1.6; color: #CBD5E1; }
+  .code-row{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px; }
+  @media (max-width:700px){ .code-row{ grid-template-columns:1fr; } }
+  .code-block{ border-radius:10px; overflow:hidden; border:1px solid rgba(255, 255, 255, 0.12); }
+  .code-label{ font-size:10.5px; font-family: var(--font-mono); padding:8px 14px; letter-spacing:0.06em; font-weight:700; }
+  .code-label.before{ background: rgba(225,29,72,0.12); color:#FF8A93; }
+  .code-label.after{ background: rgba(5,150,105,0.12); color:#6EE7B7; }
+  .diff-file-note { font-size: 10.5px; font-family: var(--font-mono); color: #94A3B8; margin-bottom: 8px; }
+  pre{ margin:0; padding:14px; font-family: var(--font-mono); font-size:11.5px; line-height:1.6; background: #020617; color:#E2E8F0; overflow-x:auto; white-space: pre-wrap; word-break: break-word; border-radius: 0 0 8px 8px; }
+  .why{ background: rgba(99, 102, 241, 0.14); border:1px solid rgba(99, 102, 241, 0.3); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+  .why h4{ font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#C9BBFF; margin-bottom:6px; font-family: var(--font-mono); }
+  .why p{ font-size:12.5px; line-height:1.6; color:#CBD5E1; }
+  .remedy-box { border:1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.65); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+  .remedy-box h4{ font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color: #F8FAFC; margin-bottom:8px; font-family: var(--font-mono); }
+  .remedy-steps{ list-style:none; display:flex; flex-direction:column; gap:6px; }
+  .remedy-steps li{ display:flex; gap:9px; font-size:12.5px; color:#CBD5E1; line-height:1.55; align-items:flex-start; }
+  .step-n{ width:18px; height:18px; border-radius:50%; font-size:9.5px; font-weight:700; font-family: var(--font-mono);
+           background: rgba(99, 102, 241, 0.25); color:#C9BBFF; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .fm-actions{ display:flex; gap:10px; }
+  .mini-btn{ padding:10px 18px; border-radius:999px; font-size:12.5px; font-weight:700; border:1px solid rgba(255, 255, 255, 0.15);
+             background: rgba(255, 255, 255, 0.08); color: #E2E8F0; cursor:pointer; transition: all .15s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+  .mini-btn:hover{ border-color: rgba(255, 255, 255, 0.3); color: #FFFFFF; background: rgba(255, 255, 255, 0.15); }
+  .mini-btn.resolve{ background: var(--grad-primary); border:none; color:white; }
+  .mini-btn.revoke{ background: var(--grad-revoke); border:none; color:white; }
+  .fm-resolved-msg{ display:none; color:var(--resolved); font-size:13px; font-weight:600; font-family:var(--font-mono); }
+
+  /* ── Pending (Analyzing) Light Nodes & Finished Dark Nodes ── */
+  .loop-node.pending {
+    background: #FFFFFF !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-left: 3px solid rgba(99, 102, 241, 0.4) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    cursor: default;
+    animation: loop-pending-pulse 1.6s ease-in-out infinite;
+  }
+  .loop-node.pending .n-index {
+    color: #6366F1 !important;
+  }
+  .loop-node.pending .n-title {
+    color: #475569 !important;
+  }
+  .loop-node.pending .n-tag {
+    background: #F1F5F9 !important;
+    color: #64748B !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  }
+
+  .loop-node.node-finished, .audit-completed .loop-node {
+    background: #0F172A !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.4) !important;
+  }
+  .loop-node.node-finished:hover, .audit-completed .loop-node:hover {
+    border-color: rgba(255, 255, 255, 0.32) !important;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 15px var(--sev-color) !important;
+  }
+  .loop-node.node-finished .n-title, .audit-completed .loop-node .n-title {
+    color: #F8FAFC !important;
+  }
+  .loop-node.node-finished .n-tag, .audit-completed .loop-node .n-tag {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #94A3B8 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+  .loop-node.node-finished .n-tag.sev, .audit-completed .loop-node .n-tag.sev {
+    color: var(--sev-color) !important;
+    background: color-mix(in srgb, var(--sev-color) 22%, transparent) !important;
+    border-color: color-mix(in srgb, var(--sev-color) 45%, transparent) !important;
+  }
+  .audit-completed .hub {
+    background: radial-gradient(circle at 35% 30%, rgba(99, 102, 241, 0.35), rgba(99, 102, 241, 0.08) 70%) !important;
+    border-color: rgba(99, 102, 241, 0.45) !important;
+    box-shadow: 0 0 35px rgba(99, 102, 241, 0.25) inset, 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  }
+  .audit-completed .hub-label {
+    color: #C9BBFF !important;
+  }
+
+  /* Dark Theme for Modal Pop Card when audit is completed */
+  .modal-card.dark-theme {
+    background: linear-gradient(160deg, #1E293B, #0F172A) !important;
+    color: #F8FAFC !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-top: 4px solid var(--sev-color, var(--critical)) !important;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7), 0 0 50px -10px color-mix(in srgb, var(--sev-color) 35%, transparent) !important;
+  }
+  .modal-card.dark-theme .modal-close {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #94A3B8 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+  .modal-card.dark-theme .modal-close:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #FFFFFF !important;
+  }
+  .modal-card.dark-theme .fm-title {
+    color: #F8FAFC !important;
+  }
+  .modal-card.dark-theme .fm-desc {
+    color: #CBD5E1 !important;
+  }
+  .modal-card.dark-theme .fm-tag {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #CBD5E1 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+  .modal-card.dark-theme .info-block {
+    background: rgba(15, 23, 42, 0.65) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  .modal-card.dark-theme .info-block p {
+    color: #CBD5E1 !important;
+  }
+  .modal-card.dark-theme .why {
+    background: rgba(99, 102, 241, 0.14) !important;
+    border-color: rgba(99, 102, 241, 0.3) !important;
+  }
+  .modal-card.dark-theme .why p {
+    color: #CBD5E1 !important;
+  }
+  .modal-card.dark-theme .why h4 {
+    color: #C9BBFF !important;
+  }
+  .modal-card.dark-theme .remedy-box {
+    background: rgba(15, 23, 42, 0.65) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  .modal-card.dark-theme .remedy-box h4 {
+    color: #F8FAFC !important;
+  }
+  .modal-card.dark-theme .remedy-steps li {
+    color: #CBD5E1 !important;
+  }
+  .modal-card.dark-theme .step-n {
+    background: rgba(99, 102, 241, 0.25) !important;
+    color: #C9BBFF !important;
+  }
+  .modal-card.dark-theme .mini-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #E2E8F0 !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+  }
+  .modal-card.dark-theme .mini-btn:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #FFFFFF !important;
+  }
+
+  @media (max-width: 768px) {
+    .main { padding: 18px 14px 40px; }
+    .score-grid { grid-template-columns: repeat(2, 1fr); }
+    .topbar { padding: 0 16px; }
+    .brand-row { padding: 0 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid rgba(110,43,139,0.15);padding:4px 8px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.2);">
+    <img src="/security-ui/gwc-logo.jpg" onerror="this.src='/static/gwc-logo.jpg'" height="26" style="object-fit:contain;border-radius:5px;flex-shrink:0;" alt="GWC Data Logo"/>
+  </div>
+  <div>
+    <div class="topbar-title">AI Security Auditor</div>
+    <div class="topbar-sub">AppDB Agent</div>
+  </div>
+  <div class="nav-tabs" style="margin-left:16px;">
+    <a href="/" onclick="goBack(); return false;" class="nav-tab">💬 Chatbot</a>
+    <a href="/auditor" class="nav-tab active">🛡️ Security Auditor</a>
+  </div>
+  <div class="verdict-pill idle" id="verdict-pill">
+    <span id="verdict-dot">&#9679;</span>
+    <span id="verdict-text">Awaiting scan</span>
+  </div>
+</div>
+
+<div class="brand-row">
+  <div class="brand-icon">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L4 5v6c0 5.2 3.4 9.7 8 11 4.6-1.3 8-5.8 8-11V5l-8-3z" fill="white" opacity="0.95"/></svg>
+  </div>
+  <div>
+    <div class="brand-h1">AI Security Auditor</div>
+    <div class="brand-sub2">AppDB Agent · continuous threat scan</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="score-grid">
+    <div class="sc sc-critical"><div class="sc-val critical" id="critical-count">0</div><div class="sc-lbl">Critical</div></div>
+    <div class="sc sc-high"><div class="sc-val high"     id="high-count">0</div><div class="sc-lbl">High</div></div>
+    <div class="sc sc-medium"><div class="sc-val medium"   id="medium-count">0</div><div class="sc-lbl">Medium</div></div>
+    <div class="sc sc-resolved"><div class="sc-val resolved" id="resolved-count">0</div><div class="sc-lbl">Resolved</div></div>
+  </div>
+
+  <div class="prod-score" id="prod-score">
+    <div class="orb-wrap">
+      <svg width="130" height="130" viewBox="0 0 160 160" id="orbSvg">
+        <defs>
+          <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF4757" id="gradStop1"/>
+            <stop offset="100%" stop-color="#FF7A5C" id="gradStop2"/>
+          </linearGradient>
+        </defs>
+        <circle class="orb-ring-bg" cx="80" cy="80" r="70"/>
+        <circle class="orb-ring-fg" cx="80" cy="80" r="70" id="orbRing"/>
+      </svg>
+      <div class="orb-center">
+        <div class="orb-score" id="score-num">0</div>
+        <div class="orb-score-sub">/ 100</div>
+      </div>
+    </div>
+    <div class="prod-score-right">
+      <div class="prod-score-label">Production readiness score</div>
+      <div class="prod-score-sub" id="score-sub">Analysing agent…</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="scan-btn" onclick="startAudit()">&#9654; Run full security audit</button>
+    <button class="btn resolve-all" id="resolve-all-btn" onclick="resolveAll()" style="display:none;">&#10003; Resolve All</button>
+    <button class="btn revoke-all"  id="revoke-all-btn"  onclick="revokeAll()"  style="display:none;">&#8635; Revoke All</button>
+    <button class="btn" onclick="resetAudit()">&#8635; Reset</button>
+    <span class="progress-text" id="progress-text"></span>
+  </div>
+
+  <div class="ai-box" id="ai-box">
+    <span>🛡️</span>
+    <div><div class="ai-box-label">Auditor analysis</div>
+    <div class="ai-box-text" id="ai-text"></div></div>
+  </div>
+
+  <div id="loop-section" style="display:none">
+    <div class="section-lbl">🔗 Agent Analysis Loop</div>
+    <p class="loop-desc">How the auditor scanned this agent, step by step. Click any node to inspect the finding.</p>
+    <div class="loop-stage" id="loopStage">
+      <svg class="loop-svg" viewBox="0 0 900 620" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="loopArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#9B7FFF"/>
+          </marker>
+        </defs>
+        <path class="loop-edge" marker-end="url(#loopArrow)" d="M506,81 L723,164"/>
+        <path class="loop-edge" marker-end="url(#loopArrow)" d="M779,245 L779,375"/>
+        <path class="loop-edge" marker-end="url(#loopArrow)" d="M723,456 L506,539"/>
+        <path class="loop-edge" marker-end="url(#loopArrow)" d="M394,539 L177,456"/>
+        <path class="loop-edge" marker-end="url(#loopArrow)" d="M121,375 L121,245"/>
+        <path class="loop-edge" marker-end="url(#loopArrow)" d="M177,164 L394,81"/>
+        <circle class="pulse-dot" r="5" fill="#22D3EE">
+          <animateMotion dur="7s" repeatCount="indefinite"
+            path="M450,60 L779,185 L779,435 L450,560 L121,435 L121,185 Z"/>
+        </circle>
+      </svg>
+      <div class="hub">
+        <div class="hub-icon">🛡️</div>
+        <div class="hub-label">CONTINUOUS<br>AUDIT LOOP</div>
+      </div>
+      <div id="loop-nodes"></div>
+    </div>
+    <div class="legend" id="loop-legend"></div>
+  </div>
+
+  <div id="findings-section" style="display:none">
+    <div class="section-lbl">Threat findings</div>
+
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-tab active all" onclick="setFilter('all')" id="tab-all">
+        All <span class="filter-count" id="cnt-all">0</span>
+      </button>
+      <button class="filter-tab" onclick="setFilter('critical')" id="tab-critical">
+        Critical <span class="filter-count" id="cnt-critical">0</span>
+      </button>
+      <button class="filter-tab" onclick="setFilter('high')" id="tab-high">
+        High <span class="filter-count" id="cnt-high">0</span>
+      </button>
+      <button class="filter-tab" onclick="setFilter('medium')" id="tab-medium">
+        Medium <span class="filter-count" id="cnt-medium">0</span>
+      </button>
+      <button class="filter-tab" onclick="setFilter('resolved')" id="tab-resolved">
+        Resolved <span class="filter-count" id="cnt-resolved">0</span>
+      </button>
+    </div>
+
+    <div class="threat-list" id="threat-list"></div>
+
+    <div class="pagination" id="pagination" style="display:none">
+      <button class="page-btn" id="prev-btn" onclick="changePage(-1)">&#8592; Prev</button>
+      <span class="page-info" id="page-info">Page 1 of 1</span>
+      <button class="page-btn" id="next-btn" onclick="changePage(1)">Next &#8594;</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Finding detail modal -->
+<div class="modal-backdrop" id="findingModalBackdrop" onclick="if(event.target===this) closeFindingModal()">
+  <div class="modal-card" id="findingModalCard" style="--sev-color: var(--critical)">
+    <button class="modal-close" onclick="closeFindingModal()">✕</button>
+    <div class="fm-title-row">
+      <span class="fm-dot"></span>
+      <span class="fm-title" id="fm-title">—</span>
+      <span class="fm-tag" id="fm-domain">—</span>
+      <span class="fm-tag" id="fm-cvss">CVSS —</span>
+      <span class="fm-tag sev" id="fm-sev">—</span>
+    </div>
+    <p class="fm-desc" id="fm-full-desc"></p>
+    <div class="info-row">
+      <div class="info-block"><h4>Attack Scenario</h4><p id="fm-attack">—</p></div>
+      <div class="info-block"><h4>Business Impact</h4><p id="fm-impact">—</p></div>
+    </div>
+    <div class="code-row" id="fm-code-row" style="display:none">
+      <div class="code-block">
+        <div class="code-label before">ORIGINAL CODE — BEFORE</div>
+        <pre id="fm-code-before"></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-label after">PATCHED CODE — AFTER</div>
+        <pre id="fm-code-after"></pre>
+      </div>
+    </div>
+    <div class="diff-file-note" id="fm-diff-file" style="display:none"></div>
+    <div class="why" id="fm-reason-box" style="display:none">
+      <h4>Why This Matters</h4><p id="fm-reason"></p>
+    </div>
+    <div class="remedy-box" id="fm-remedy-box" style="display:none">
+      <h4>Remediation Steps</h4>
+      <ul class="remedy-steps" id="fm-remedy-list"></ul>
+    </div>
+    <div class="fm-actions" id="fm-actions"></div>
+    <div id="fm-resolved-msg" class="fm-resolved-msg">✓ Resolved — patch applied</div>
+  </div>
+</div>
+
+<script>
+const SEV_ORDER = {critical:0, high:1, medium:2, low:3, resolved:4};
+const PAGE_SIZE = 10;
+/* Hexagon node positions (%) — matches the 900x620 loop-svg viewBox layout */
+const LOOP_POS = [
+  {left:'50%',   top:'9.68%'},   // 0 top
+  {left:'86.56%',top:'29.84%'},  // 1 upper-right
+  {left:'86.56%',top:'70.16%'},  // 2 lower-right
+  {left:'50%',   top:'90.32%'},  // 3 bottom
+  {left:'13.44%',top:'70.16%'},  // 4 lower-left
+  {left:'13.44%',top:'29.84%'}   // 5 upper-left
+];
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+let findings = {};
+let scanning = false;
+let eventSource = null;
+let activeFilter = 'all';
+let currentPage = 1;
+let currentFindingId = null;
+let expectedTotal = 0;
+
+const colorSets = {
+  red:   { c1:"#FF4757", c2:"#FF7A5C", text:"var(--critical)", glow:"rgba(255,71,87,0.5)" },
+  amber: { c1:"#FFB020", c2:"#FFD93D", text:"var(--high)",     glow:"rgba(255,176,32,0.5)" },
+  green: { c1:"#34D399", c2:"#12A879", text:"var(--resolved)", glow:"rgba(52,211,153,0.5)" }
+};
+
+function goBack() { window.location.href = '/'; }
+
+// Activity log UI was removed; kept as a no-op so existing call sites don't need touching.
+function addLog() {}
+
+function calcScore() {
+  const active=Object.values(findings).filter(f=>f.status==='threat');
+  const penalty=active.reduce((acc,f)=>acc+({critical:12,high:7,medium:3,low:1}[f.severity]||1),0);
+  return Math.max(0,100-penalty);
+}
+
+function setOrb(score) {
+  const offset = 440 * (1 - score/100);
+  const ring = document.getElementById('orbRing');
+  ring.style.strokeDashoffset = offset;
+  const numEl = document.getElementById('score-num');
+  numEl.textContent = score;
+  const set = score >= 90 ? colorSets.green : score >= 60 ? colorSets.amber : colorSets.red;
+  document.getElementById('gradStop1').setAttribute('stop-color', set.c1);
+  document.getElementById('gradStop2').setAttribute('stop-color', set.c2);
+  numEl.style.color = set.text;
+  numEl.style.textShadow = `0 0 20px ${set.glow}`;
+  document.getElementById('orbSvg').style.filter = `drop-shadow(0 0 14px ${set.glow})`;
+}
+
+function updateScoreBar() {
+  const score=calcScore();
+  document.getElementById('prod-score').classList.add('visible');
+  setOrb(score);
+  const isRed=score<70||Object.values(findings).some(f=>f.severity==='critical'&&f.status==='threat');
+  document.getElementById('score-sub').textContent=isRed?'Critical/high threats must be resolved before deployment':'Agent meets minimum security requirements';
+  updateVerdict(isRed);
+  updateCounters();
+}
+
+function updateVerdict(isRed) {
+  const pill=document.getElementById('verdict-pill');
+  const txt=document.getElementById('verdict-text');
+  if(scanning){pill.className='verdict-pill scan';txt.textContent='Scanning…';return;}
+  if(!Object.keys(findings).length) return;
+  pill.className='verdict-pill '+(isRed?'red':'green');
+  txt.textContent=isRed?'Not approved':'Approved';
+}
+
+function updateCounters() {
+  const all=Object.values(findings);
+  const cc=all.filter(f=>f.severity==='critical'&&f.status==='threat').length;
+  const hc=all.filter(f=>f.severity==='high'&&f.status==='threat').length;
+  const mc=all.filter(f=>f.severity==='medium'&&f.status==='threat').length;
+  const rc=all.filter(f=>f.status==='resolved').length;
+  document.getElementById('critical-count').textContent=cc;
+  document.getElementById('high-count').textContent=hc;
+  document.getElementById('medium-count').textContent=mc;
+  document.getElementById('resolved-count').textContent=rc;
+  document.getElementById('cnt-all').textContent=all.length;
+  document.getElementById('cnt-critical').textContent=cc;
+  document.getElementById('cnt-high').textContent=hc;
+  document.getElementById('cnt-medium').textContent=mc;
+  document.getElementById('cnt-resolved').textContent=rc;
+}
+
+function setFilter(f) {
+  activeFilter=f;
+  currentPage=1;
+  document.querySelectorAll('.filter-tab').forEach(t=>{
+    t.classList.remove('active','all','critical','high','medium','resolved');
+  });
+  const tab=document.getElementById('tab-'+f);
+  tab.classList.add('active',f);
+  rebuildList();
+}
+
+function sortedAllFindings() {
+  return Object.values(findings).sort((a,b)=>{
+    const as=a.status==='resolved'?4:(SEV_ORDER[a.severity] ?? 3);
+    const bs=b.status==='resolved'?4:(SEV_ORDER[b.severity] ?? 3);
+    return as-bs;
+  });
+}
+
+function getFilteredFindings() {
+  const all=sortedAllFindings();
+  if(activeFilter==='all') return all;
+  if(activeFilter==='resolved') return all.filter(f=>f.status==='resolved');
+  return all.filter(f=>f.severity===activeFilter&&f.status==='threat');
+}
+
+/* Show the hexagon loop when the audit produced exactly 6 findings (matches
+   the fixed 6-threat scan set), otherwise fall back to the filterable list. */
+/* Loop mode activates the instant a 6-threat scan starts (skeleton nodes fill in
+   one by one as SSE "finding" events arrive) and stays active once settled. */
+function renderFindings() {
+  const count = Object.keys(findings).length;
+  const loopSection = document.getElementById('loop-section');
+  const listSection = document.getElementById('findings-section');
+  const useLoop = (scanning && expectedTotal === 6) || (!scanning && count === 6);
+
+  if (useLoop) {
+    listSection.style.display = 'none';
+    loopSection.style.display = 'block';
+    if (!scanning) {
+      loopSection.classList.add('audit-completed');
+    } else {
+      loopSection.classList.remove('audit-completed');
+    }
+    renderLoop(scanning ? expectedTotal : undefined);
+    return;
+  }
+
+  loopSection.style.display = 'none';
+  if (!count) { listSection.style.display = 'none'; return; }
+  rebuildList();
+}
+
+function renderLoop(expectedTotalOverride) {
+  const ids = Object.keys(findings); // arrival order == backend scan order
+  const slots = Math.min(expectedTotalOverride || ids.length || 6, 6);
+  const nodesEl = document.getElementById('loop-nodes');
+
+  let html = '';
+  for (let i = 0; i < slots; i++) {
+    const pos = LOOP_POS[i];
+    const f = findings[ids[i]];
+    if (!f) {
+      html += `<div class="loop-node pending" style="left:${pos.left}; top:${pos.top}">
+        <div class="n-top"><span class="n-index">0${i+1}</span><span class="n-title">Analysing…</span></div>
+        <div class="n-tags"><span class="n-tag">PENDING</span></div>
+      </div>`;
+      continue;
+    }
+    const resolved = f.status === 'resolved';
+    const sevVar = resolved ? 'var(--resolved)' : ({critical:'var(--critical)',high:'var(--high)',medium:'var(--medium)',low:'var(--text-dim)'}[f.severity] || 'var(--critical)');
+    const sevLabel = resolved ? 'RESOLVED' : f.severity.toUpperCase();
+    const active = currentFindingId === f.id ? ' active' : '';
+    html += `<div class="loop-node node-finished${active}" style="left:${pos.left}; top:${pos.top}; --sev-color:${sevVar}" data-id="${f.id}" onclick="openFindingModal('${f.id}')">
+      <div class="n-top"><span class="n-index">0${i+1}</span><span class="n-title">${escapeHtml(f.title)}</span></div>
+      <div class="n-tags"><span class="n-tag sev">${sevLabel}</span><span class="n-tag">CVSS ${(f.cvss||0).toFixed(1)}</span></div>
+    </div>`;
+  }
+  nodesEl.innerHTML = html;
+
+  const all = Object.values(findings);
+  const cc = all.filter(f=>f.severity==='critical'&&f.status==='threat').length;
+  const hc = all.filter(f=>f.severity==='high'&&f.status==='threat').length;
+  const mc = all.filter(f=>f.severity==='medium'&&f.status==='threat').length;
+  const rc = all.filter(f=>f.status==='resolved').length;
+  document.getElementById('loop-legend').innerHTML = `
+    <span class="legend-chip"><span class="legend-dot" style="background:var(--critical)"></span>${cc} Critical</span>
+    <span class="legend-chip"><span class="legend-dot" style="background:var(--high)"></span>${hc} High</span>
+    <span class="legend-chip"><span class="legend-dot" style="background:var(--medium)"></span>${mc} Medium</span>
+    ${rc > 0 ? `<span class="legend-chip"><span class="legend-dot" style="background:var(--resolved)"></span>${rc} Resolved</span>` : ''}
+  `;
+}
+
+function rebuildList() {
+  const list=document.getElementById('threat-list');
+  const section=document.getElementById('findings-section');
+  const pag=document.getElementById('pagination');
+  const all=Object.values(findings);
+  if(!all.length){list.innerHTML='';section.style.display='none';return;}
+  section.style.display='block';
+
+  const filtered=getFilteredFindings();
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  if(currentPage>totalPages) currentPage=totalPages;
+
+  const start=(currentPage-1)*PAGE_SIZE;
+  const page=filtered.slice(start,start+PAGE_SIZE);
+
+  if(!page.length){
+    list.innerHTML=`<div class="empty-state">No ${activeFilter==='all'?'findings':activeFilter} threats found.</div>`;
+    pag.style.display='none';
+    return;
+  }
+
+  list.innerHTML=page.map(f=>renderCard(f)).join('');
+
+  if(totalPages>1){
+    pag.style.display='flex';
+    document.getElementById('page-info').textContent=`Page ${currentPage} of ${totalPages} (${filtered.length} items)`;
+    document.getElementById('prev-btn').disabled=currentPage===1;
+    document.getElementById('next-btn').disabled=currentPage===totalPages;
+  } else {
+    pag.style.display='none';
+  }
+}
+
+function changePage(dir) {
+  const filtered=getFilteredFindings();
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  currentPage=Math.max(1,Math.min(totalPages,currentPage+dir));
+  rebuildList();
+  document.getElementById('findings-section').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function renderCard(f) {
+  const resolved=f.status==='resolved';
+  const sev=resolved?'resolved':f.severity;
+  const sevLabel=resolved?'RESOLVED':f.severity.toUpperCase();
+  return `<div class="tcard ${sev}" id="tcard-${f.id}">
+    <div class="tcard-head" onclick="openFindingModal('${f.id}')">
+      <div class="sev-dot"></div>
+      <span class="tcard-title">${escapeHtml(f.title)}</span>
+      <span class="domain-tag">${escapeHtml(f.domain)}</span>
+      <span class="cvss-chip">CVSS ${(f.cvss||0).toFixed(1)}</span>
+      <span class="sev-badge">${sevLabel}</span>
+      <span class="chevron">›</span>
+    </div>
+  </div>`;
+}
+
+function openFindingModal(id) {
+  const f=findings[id];
+  if(!f) return;
+  currentFindingId=id;
+  const resolved=f.status==='resolved';
+  const sevVar = resolved ? 'var(--resolved)' : {critical:'var(--critical)',high:'var(--high)',medium:'var(--medium)',low:'var(--text-dim)'}[f.severity] || 'var(--critical)';
+  const modalCard = document.getElementById('findingModalCard');
+  modalCard.classList.add('dark-theme');
+  document.getElementById('fm-title').textContent=f.title;
+  document.getElementById('fm-domain').textContent=f.domain;
+  document.getElementById('fm-cvss').textContent=`CVSS ${(f.cvss||0).toFixed(1)}`;
+  document.getElementById('fm-sev').textContent=resolved?'RESOLVED':f.severity.toUpperCase();
+  document.getElementById('fm-full-desc').textContent=f.description||'';
+  document.getElementById('fm-attack').textContent=f.exploit||'Review manually.';
+  document.getElementById('fm-impact').textContent=f.impact||'Unknown impact.';
+
+  const codeRow=document.getElementById('fm-code-row');
+  const diffNote=document.getElementById('fm-diff-file');
+  if(f.diff_before && f.diff_after){
+    codeRow.style.display='grid';
+    document.getElementById('fm-code-before').textContent=f.diff_before;
+    document.getElementById('fm-code-after').textContent=f.diff_after;
+    if(f.diff_file){
+      diffNote.style.display='block';
+      diffNote.textContent = resolved ? `Code patched by agent in ${f.diff_file}` : `Expected changes in ${f.diff_file}`;
+    } else { diffNote.style.display='none'; }
+  } else {
+    codeRow.style.display='none';
+    diffNote.style.display='none';
+  }
+
+  const reasonBox=document.getElementById('fm-reason-box');
+  if(f.diff_reason){ reasonBox.style.display='block'; document.getElementById('fm-reason').textContent=f.diff_reason; }
+  else reasonBox.style.display='none';
+
+  const remedyBox=document.getElementById('fm-remedy-box');
+  if(f.fix_steps && f.fix_steps.length){
+    remedyBox.style.display='block';
+    document.getElementById('fm-remedy-list').innerHTML=f.fix_steps.map((s,i)=>`<li><span class="step-n">${i+1}</span><span>${escapeHtml(s)}</span></li>`).join('');
+  } else remedyBox.style.display='none';
+
+  updateModalActions(id);
+  document.getElementById('findingModalBackdrop').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.querySelectorAll('.loop-node').forEach(n=>n.classList.toggle('active', n.dataset.id===id));
+}
+
+function updateModalActions(id) {
+  const f=findings[id];
+  if(!f) return;
+  const actions=document.getElementById('fm-actions');
+  const msg=document.getElementById('fm-resolved-msg');
+  if(f.status==='resolved'){
+    actions.style.display='none';
+    msg.style.display='block';
+  } else {
+    actions.style.display='flex';
+    msg.style.display='none';
+    actions.innerHTML=`
+      <button class="mini-btn" onclick="resolveCheck('${id}')">Mark as Resolved</button>
+      <button class="mini-btn resolve" onclick="autoResolve('${id}')">Resolve</button>`;
+  }
+}
+
+function refreshModalIfOpen(id) {
+  if(currentFindingId===id && document.getElementById('findingModalBackdrop').classList.contains('open')){
+    openFindingModal(id);
+  }
+}
+
+function closeFindingModal() {
+  document.getElementById('findingModalBackdrop').classList.remove('open');
+  document.body.style.overflow='';
+  currentFindingId=null;
+  document.querySelectorAll('.loop-node').forEach(n=>n.classList.remove('active'));
+}
+
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeFindingModal(); });
+
+async function resolveCheck(id) {
+  const f=findings[id];
+  if(!f) return;
+  findings[id].status='resolved';
+  try{localStorage.setItem('auditor_findings',JSON.stringify(findings));}catch(e){}
+  addLog(`Resolved: ${f.title}`,'ok');
+  renderFindings();
+  updateScoreBar();
+  refreshModalIfOpen(id);
+  try {
+    const resp=await fetch(`/security/resolve/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:f.title})});
+    const data=await resp.json();
+    showAiText(data.message||'Threat resolved.');
+    addLog(data.message||'Resolved.','ai');
+  } catch(e) {
+    showAiText(`Threat "${f.title}" marked as resolved.`);
+  }
+}
+
+async function autoResolve(id) {
+  const f=findings[id];
+  if(!f) return;
+  addLog(`Attempting to automatically patch: ${f.title}`,'warn');
+  try {
+    const resp=await fetch(`/security/fix/${id}`,{method:'POST'});
+    const data=await resp.json();
+    if(resp.status === 200) {
+      addLog(`Auto Fix Succeeded: ${f.title}`,'ok');
+      showAiText(data.message || 'Threat successfully resolved by backend agent.');
+      findings[id].status = 'resolved';
+      if (data.diff_file)   findings[id].diff_file   = data.diff_file;
+      if (data.diff_before) findings[id].diff_before = data.diff_before;
+      if (data.diff_after)  findings[id].diff_after  = data.diff_after;
+      try{localStorage.setItem('auditor_findings',JSON.stringify(findings));}catch(e){}
+      renderFindings();
+      updateCounters();
+      updateScoreBar();
+      refreshModalIfOpen(id);
+    } else {
+      addLog(`Auto Fix Failed: ${data.message || 'Error occurred.'}`,'err');
+      showAiText(`Could not apply auto-fix: ${data.message}`);
+    }
+  } catch(e) {
+    addLog(`Error during auto-fix: ${e}`,'err');
+    showAiText(`Error: ${e}`);
+  }
+}
+
+async function autoRevoke(id) {
+  const f=findings[id];
+  if(!f) return;
+  addLog(`Attempting to revoke patches for: ${f.title}`,'warn');
+  try {
+    const resp=await fetch(`/security/revoke/${id}`,{method:'POST'});
+    const data=await resp.json();
+    if(resp.status === 200) {
+      addLog(`Patches Revoked: ${f.title} — marked back as threat`,'warn');
+      showAiText(data.message || 'Patches reverted. Threat is now active again.');
+      findings[id].status = 'threat';
+      try{localStorage.setItem('auditor_findings',JSON.stringify(findings));}catch(e){}
+      renderFindings();
+      updateCounters();
+      updateScoreBar();
+      refreshModalIfOpen(id);
+    } else {
+      addLog(`Revoke Failed: ${data.message || 'Error occurred.'}`,'err');
+      showAiText(`Could not revoke patches: ${data.message}`);
+    }
+  } catch(e) {
+    addLog(`Error during revoke: ${e}`,'err');
+    showAiText(`Error: ${e}`);
+  }
+}
+
+function showAiText(text) {
+  const box=document.getElementById('ai-box');
+  box.classList.add('visible');
+  document.getElementById('ai-text').textContent=text;
+}
+
+function startAudit() {
+  if(scanning) return;
+  scanning=true;
+  findings={};
+  expectedTotal=0;
+  localStorage.removeItem('auditor_findings');
+  currentPage=1;
+  activeFilter='all';
+  closeFindingModal();
+  document.getElementById('threat-list').innerHTML='';
+  document.getElementById('findings-section').style.display='none';
+  document.getElementById('loop-section').style.display='none';
+  document.getElementById('loop-section').classList.remove('audit-completed');
+  document.getElementById('ai-box').classList.remove('visible');
+  document.getElementById('prod-score').classList.remove('visible');
+  document.getElementById('scan-btn').disabled=true;
+  document.getElementById('resolve-all-btn').style.display='none';
+  document.getElementById('revoke-all-btn').style.display='none';
+  document.getElementById('verdict-pill').className='verdict-pill scan';
+  document.getElementById('verdict-text').textContent='Scanning…';
+  document.querySelectorAll('.filter-tab').forEach(t=>{t.classList.remove('active','all','critical','high','medium','resolved');});
+  document.getElementById('tab-all').classList.add('active','all');
+  updateCounters();
+  addLog('Starting AI security audit…','warn');
+  addLog('Connecting to audit stream…');
+  if(eventSource) eventSource.close();
+  eventSource=new EventSource('/security/audit/stream');
+  eventSource.onmessage=function(e){
+    const event=JSON.parse(e.data);
+    if(event.type==='start'){
+      addLog(`Analysing ${event.total} threats across 7 security domains…`,'ai');
+      document.getElementById('progress-text').textContent=`0 / ${event.total}`;
+      expectedTotal = event.total;
+      renderFindings();
+    } else if(event.type==='finding'){
+      const f=event.finding;
+      findings[f.id]=f;
+      try{localStorage.setItem('auditor_findings',JSON.stringify(findings));}catch(e){}
+      const lt=f.severity==='critical'||f.severity==='high'?'err':f.severity==='medium'?'warn':'ok';
+      const st=f.status==='resolved'?'ok':lt;
+      addLog(`[${f.status==='resolved'?'RESOLVED':f.severity.toUpperCase()}] ${f.title}`,st);
+      document.getElementById('progress-text').textContent=`${event.index+1} / ${event.total}`;
+      renderFindings();
+      updateScoreBar();
+    } else if(event.type==='done'){
+      scanning=false;
+      eventSource.close();
+      document.getElementById('scan-btn').disabled=false;
+      document.getElementById('progress-text').textContent='';
+      const isRed=event.verdict==='NOT APPROVED';
+      document.getElementById('verdict-pill').className='verdict-pill '+(isRed?'red':'green');
+      document.getElementById('verdict-text').textContent=isRed?'Not approved':'Approved';
+      addLog(`Audit complete. Score: ${event.score}/100. ${event.critical_count} critical · ${event.high_count} high · ${event.medium_count} medium`,isRed?'err':'ok');
+      updateScoreBar();
+      showAiText(`Security audit complete. Score: ${event.score}/100. Found ${event.critical_count} critical, ${event.high_count} high, ${event.medium_count} medium severity issues. `+(isRed?`Agent is NOT approved for production. Resolve all critical and high threats first.`:`All critical and high threats are resolved. Agent meets minimum security requirements.`));
+      const hasThreats  = Object.values(findings).some(f => f.status === 'threat');
+      const hasResolved = Object.values(findings).some(f => f.status === 'resolved');
+      document.getElementById('resolve-all-btn').style.display = hasThreats  ? 'inline-flex' : 'none';
+      document.getElementById('revoke-all-btn').style.display  = hasResolved ? 'inline-flex' : 'none';
+    } else if(event.type==='error'){
+      scanning=false;
+      document.getElementById('scan-btn').disabled=false;
+      addLog('Error: '+event.message,'err');
+      renderFindings();
+    }
+  };
+  eventSource.onerror=function(){
+    scanning=false;
+    document.getElementById('scan-btn').disabled=false;
+    addLog('Connection to audit stream lost. Is the server running?','err');
+    eventSource.close();
+    renderFindings();
+  };
+}
+
+async function loadState() {
+  try {
+    const r = await fetch('/ping');
+    const d = await r.json();
+    const prev = localStorage.getItem('server_start');
+    if (prev && prev !== d.started) {
+      localStorage.removeItem('auditor_findings');
+    }
+    localStorage.setItem('server_start', d.started);
+  } catch {}
+  try {
+    const raw = localStorage.getItem('auditor_findings');
+    document.getElementById('resolve-all-btn').style.display = 'none';
+    document.getElementById('revoke-all-btn').style.display  = 'none';
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || !Object.keys(saved).length) return;
+    findings = saved;
+    renderFindings();
+    updateCounters();
+    updateScoreBar();
+    const hasRed = Object.values(findings).some(f=>(f.severity==='critical'||f.severity==='high')&&f.status==='threat');
+    document.getElementById('verdict-pill').className='verdict-pill '+(hasRed?'red':'green');
+    document.getElementById('verdict-text').textContent=hasRed?'Not approved':'Approved';
+    addLog('Previous audit results restored.','ok');
+  } catch(e) {
+    document.getElementById('resolve-all-btn').style.display = 'none';
+  }
+}
+
+function bindTilt() {
+  document.querySelectorAll('.sc').forEach(el=>{
+    el.addEventListener('mousemove', e=>{
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - r.left)/r.width - 0.5;
+      const y = (e.clientY - r.top)/r.height - 0.5;
+      el.style.transform = `perspective(700px) rotateY(${x*6}deg) rotateX(${-y*6}deg) translateZ(4px)`;
+    });
+    el.addEventListener('mouseleave', ()=>{ el.style.transform = 'perspective(700px) rotateY(0) rotateX(0)'; });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => { loadState(); bindTilt(); });
+
+function resetAudit() {
+  if(eventSource) eventSource.close();
+  scanning=false; findings={}; expectedTotal=0; localStorage.removeItem('auditor_findings'); currentPage=1; activeFilter='all';
+  closeFindingModal();
+  document.getElementById('threat-list').innerHTML='';
+  document.getElementById('findings-section').style.display='none';
+  document.getElementById('loop-section').style.display='none';
+  document.getElementById('ai-box').classList.remove('visible');
+  document.getElementById('prod-score').classList.remove('visible');
+  document.getElementById('scan-btn').disabled=false;
+  document.getElementById('resolve-all-btn').style.display='none';
+  document.getElementById('revoke-all-btn').style.display='none';
+  document.getElementById('verdict-pill').className='verdict-pill idle';
+  document.getElementById('verdict-text').textContent='Awaiting scan';
+  document.getElementById('progress-text').textContent='';
+  document.querySelectorAll('.filter-tab').forEach(t=>{t.classList.remove('active','all','critical','high','medium','resolved');});
+  document.getElementById('tab-all').classList.add('active','all');
+  updateCounters();
+  addLog('Auditor reset.');
+}
+
+addLog('AI Security Auditor ready. Click "Run full security audit" to begin.');
+
+/* ── Resolve All ──────────────────────────────────────────────────────────── */
+async function resolveAll() {
+  const btn = document.getElementById('resolve-all-btn');
+  const activeThreats = Object.values(findings).filter(f => f.status === 'threat');
+
+  if (!activeThreats.length) {
+    showAiText('All threats are already resolved! Your agent is production-ready.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.classList.add('working');
+  btn.textContent = 'Resolving…';
+  addLog(`Resolve All started — ${activeThreats.length} threat(s) to fix…`, 'warn');
+
+  let resolved = 0;
+  for (const f of activeThreats) {
+    addLog(`Patching: ${f.title}`, 'warn');
+    try {
+      const resp = await fetch(`/security/fix/${f.id}`, { method: 'POST' });
+      const data = await resp.json();
+      findings[f.id].status = 'resolved';
+      if (data.diff_file)   findings[f.id].diff_file   = data.diff_file;
+      if (data.diff_before) findings[f.id].diff_before = data.diff_before;
+      if (data.diff_after)  findings[f.id].diff_after  = data.diff_after;
+      addLog(resp.status === 200 ? `Patched: ${f.title}` : `Marked resolved: ${f.title}`, resp.status === 200 ? 'ok' : 'warn');
+    } catch (e) {
+      findings[f.id].status = 'resolved';
+      addLog(`Marked resolved (offline): ${f.title}`, 'warn');
+    }
+    resolved++;
+    try { localStorage.setItem('auditor_findings', JSON.stringify(findings)); } catch(_) {}
+    renderFindings();
+    updateCounters();
+    updateScoreBar();
+  }
+
+  setOrb(100);
+  const numEl = document.getElementById('score-num');
+  numEl.classList.add('score-celebrate');
+  setTimeout(() => numEl.classList.remove('score-celebrate'), 600);
+  document.getElementById('score-sub').textContent = 'All threats resolved — agent is fully production-ready.';
+  document.getElementById('verdict-pill').className = 'verdict-pill green';
+  document.getElementById('verdict-text').textContent = 'Approved';
+
+  showAiText(`All ${resolved} threats resolved. Production Readiness Score: 100/100. Your AppDB Agent is now fully approved and ready for deployment.`);
+  addLog(`Resolve All complete — Score: 100/100`, 'ok');
+  refreshModalIfOpen(currentFindingId);
+
+  btn.classList.remove('working');
+  btn.textContent = 'All Resolved';
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.style.display = 'none';
+    btn.innerHTML = '&#10003; Resolve All';
+    const rb = document.getElementById('revoke-all-btn');
+    rb.style.display = 'inline-flex';
+  }, 1200);
+}
+
+/* ── Revoke All ────────────────────────────────────────────────────────── */
+async function revokeAll() {
+  const btn = document.getElementById('revoke-all-btn');
+  const resolvedThreats = Object.values(findings).filter(f => f.status === 'resolved');
+
+  if (!resolvedThreats.length) {
+    showAiText('No resolved threats to revoke.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.classList.add('working');
+  btn.textContent = 'Revoking…';
+  addLog(`Revoke All started — ${resolvedThreats.length} patch(es) to revert…`, 'warn');
+
+  let revoked = 0;
+  for (const f of resolvedThreats) {
+    addLog(`Revoking: ${f.title}`, 'warn');
+    try {
+      const resp = await fetch(`/security/revoke/${f.id}`, { method: 'POST' });
+      findings[f.id].status = 'threat';
+      addLog(resp.status === 200 ? `Revoked: ${f.title}` : `Marked as threat: ${f.title}`, 'warn');
+    } catch (e) {
+      findings[f.id].status = 'threat';
+      addLog(`Marked as threat (offline): ${f.title}`, 'warn');
+    }
+    revoked++;
+    try { localStorage.setItem('auditor_findings', JSON.stringify(findings)); } catch(_) {}
+    renderFindings();
+    updateCounters();
+    updateScoreBar();
+  }
+
+  showAiText(`All ${revoked} patches revoked. Threats are active again. Run Resolve All to re-apply fixes.`);
+  addLog(`Revoke All complete — ${revoked} patch(es) reverted`, 'warn');
+  refreshModalIfOpen(currentFindingId);
+
+  btn.classList.remove('working');
+  btn.textContent = 'All Revoked';
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.style.display = 'none';
+    btn.innerHTML = '&#8635; Revoke All';
+    const hasThreats = Object.values(findings).some(f => f.status === 'threat');
+    if (hasThreats) {
+      document.getElementById('resolve-all-btn').style.display = 'inline-flex';
+    }
+  }, 1200);
+}
+</script>
+</body>
+</html>

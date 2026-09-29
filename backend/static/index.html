@@ -3,80 +3,105 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Domo AppDB Agent</title>
+<title>AppDB Agent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:          #f7f8fc;
-  --panel:       #ffffff;
-  --surface:     #f0f2f8;
-  --border:      #e4e7f0;
-  --border-soft: #eef0f7;
-  --accent:      #5b4ef0;
-  --accent-soft: #ede9fe;
-  --accent-text: #4338ca;
-  --text-1:      #111827;
-  --text-2:      #6b7280;
-  --text-3:      #9ca3af;
-  --user-bg:     #5b4ef0;
+  --bg:          #F4F6FC;
+  --panel:       #FFFFFF;
+  --panel-solid: #FFFFFF;
+  --surface:     #F8FAFC;
+  --border:      rgba(0,0,0,0.08);
+  --border-hi:   rgba(99,102,241,0.25);
+  --violet:      #6366F1;
+  --violet-glow: #818CF8;
+  --violet-soft: rgba(99,102,241,0.08);
+  --grad-primary: linear-gradient(135deg, #6366F1, #4F46E5);
+  --text-1:      #0F172A;
+  --text-2:      #334155;
+  --text-3:      #64748B;
+  --user-bg:     linear-gradient(135deg, #6366F1, #4F46E5);
   --user-text:   #ffffff;
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:   0 4px 16px -2px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.03);
   --r-sm: 10px;
   --r-md: 14px;
   --r-lg: 20px;
   --font: 'Inter', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
   --mono: 'JetBrains Mono', monospace;
 }
 
 html, body { height: 100%; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: 14px; line-height: 1.6; overflow: hidden; }
-.layout { display: flex; height: 100vh; }
+body {
+  background: radial-gradient(ellipse 90% 55% at 50% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
+              radial-gradient(ellipse 55% 40% at 88% 45%, rgba(2, 132, 199, 0.06), transparent 65%),
+              radial-gradient(ellipse 55% 40% at 6% 70%, rgba(99, 102, 241, 0.06), transparent 65%),
+              linear-gradient(180deg, #F8FAFC 0%, #EFF2F9 100%);
+}
+body::before {
+  content:''; position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent);
+  pointer-events: none; z-index: 0;
+}
+.layout { display: flex; height: 100vh; position: relative; z-index: 1; }
 
 /* ── Sidebar ── */
-.sidebar { width: 248px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-.sidebar-top { padding: 22px 18px 16px; border-bottom: 1px solid var(--border-soft); }
+.sidebar { width: 248px; flex-shrink: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(14px); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-top { padding: 22px 18px 16px; border-bottom: 1px solid var(--border); }
 .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-.brand-mark { width: 34px; height: 34px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.brand-mark { width: 34px; height: 34px; background: var(--grad-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 6px 16px -4px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.25); }
 .brand-mark svg { color: #fff; }
-.brand-name { font-size: 13px; font-weight: 600; color: var(--text-1); letter-spacing: -0.1px; }
-.brand-sub  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.brand-name { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-1); letter-spacing: -0.1px; }
+.brand-sub  { font-size: 11px; color: var(--text-3); margin-top: 1px; font-family: var(--mono); }
 .new-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-.new-btn:hover { background: var(--accent-soft); border-color: #c4b5fd; color: var(--accent-text); }
-.sidebar-label { padding: 14px 18px 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.new-btn:hover { background: var(--violet-soft); border-color: rgba(99,102,241,0.3); color: var(--violet); }
+.sidebar-label { padding: 14px 18px 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); font-family: var(--mono); }
 .session-list { flex: 1; overflow-y: auto; padding: 4px 10px; }
 .session-list::-webkit-scrollbar { width: 3px; }
 .session-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .session-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-sm); cursor: pointer; transition: background 0.12s; color: var(--text-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .session-item:hover { background: var(--surface); color: var(--text-1); }
-.session-item.active { background: var(--accent-soft); color: var(--accent-text); }
+.session-item.active { background: var(--violet-soft); color: var(--violet); font-weight:600; }
 
 /* ── Chat area ── */
-.chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
-.chat-topbar { display: flex; align-items: center; justify-content: space-between; padding: 13px 24px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-topbar { display: flex; align-items: center; justify-content: space-between; padding: 13px 24px; background: rgba(255,255,255,0.85); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .topbar-left { display: flex; align-items: center; gap: 10px; }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
-.topbar-title { font-size: 14px; font-weight: 600; color: var(--text-1); }
-.topbar-sub   { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--violet-glow); box-shadow: 0 0 8px var(--violet-glow); flex-shrink: 0; }
+.topbar-title { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-1); }
+.topbar-sub   { font-size: 12px; color: var(--text-3); margin-top: 1px; font-family: var(--mono); }
 .topbar-actions { display: flex; gap: 6px; align-items: center; }
-.icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text-2); cursor: pointer; transition: all 0.15s; }
-.icon-btn:hover { background: var(--surface); border-color: #c4b5fd; color: var(--accent); }
+.icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text-2); cursor: pointer; transition: all 0.15s; }
+.icon-btn:hover { background: var(--violet-soft); border-color: rgba(99,102,241,0.3); color: var(--violet); }
 
-.security-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: var(--r-sm); cursor: pointer; transition: all 0.15s; position: relative; flex-shrink: 0; }
-.security-btn:hover { background: #fee2e2; border-color: #f87171; transform: scale(1.04); }
-.security-pulse { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: #ef4444; animation: sblink 1.5s ease-in-out infinite; }
+.security-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--violet-soft); border: 1px solid rgba(99,102,241,0.3); border-radius: var(--r-sm); cursor: pointer; transition: all 0.15s; position: relative; flex-shrink: 0; }
+.security-btn:hover { background: rgba(99,102,241,0.14); border-color: var(--violet); transform: scale(1.04); }
+.security-pulse { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--violet); animation: sblink 1.5s ease-in-out infinite; }
 @keyframes sblink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.6)} }
 
 /* ── Messages ── */
 .messages { flex: 1; overflow-y: auto; padding: 32px 28px; display: flex; flex-direction: column; gap: 22px; scroll-behavior: smooth; }
 .messages::-webkit-scrollbar { width: 4px; }
-.messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.messages::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 4px; }
 
 /* ── Welcome screen ── */
 .welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 60px 24px 24px; text-align: center; }
-.welcome-logo { width: 56px; height: 56px; background: var(--accent); border-radius: 18px; display: flex; align-items: center; justify-content: center; margin: 0 auto 22px; box-shadow: 0 4px 20px rgba(91,78,240,0.28); }
-.welcome h1 { font-size: 22px; font-weight: 600; color: var(--text-1); letter-spacing: -0.4px; margin-bottom: 10px; }
+.welcome-logo {
+  width: 64px; height: 64px; border-radius: 18px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--violet), #4F46E5);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 22px;
+  box-shadow: 0 10px 24px -8px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+  transform: perspective(300px) rotateX(6deg);
+}
+.welcome h1 { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--text-1); letter-spacing: -0.4px; margin-bottom: 10px; }
 .welcome-desc { font-size: 13.5px; color: var(--text-2); max-width: 340px; line-height: 1.75; margin: 0 auto; }
 
 /* ── Message rows ── */
@@ -84,22 +109,22 @@ html, body { height: 100%; background: var(--bg); color: var(--text-1); font-fam
 .msg-row.user { flex-direction: row-reverse; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 .avatar { width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; margin-top: 2px; }
-.avatar.agent { background: var(--accent-soft); color: var(--accent); border: 1px solid #c4b5fd; }
+.avatar.agent { background: var(--violet-soft); color: var(--violet); border: 1px solid rgba(99,102,241,0.3); }
 .avatar.user  { background: var(--user-bg); color: var(--user-text); font-size: 11px; }
 .msg-content { max-width: 70%; display: flex; flex-direction: column; gap: 4px; }
 .msg-row.user .msg-content { align-items: flex-end; }
 .bubble { padding: 10px 14px; border-radius: var(--r-lg); font-size: 13.5px; line-height: 1.65; }
-.bubble.agent { background: var(--panel); border: 1px solid var(--border); color: var(--text-1); border-top-left-radius: 4px; box-shadow: var(--shadow-sm); }
-.bubble.user  { background: var(--user-bg); color: var(--user-text); border-top-right-radius: 4px; }
+.bubble.agent { background: #FFFFFF; backdrop-filter: blur(10px); border: 1px solid var(--border); color: var(--text-1); border-top-left-radius: 4px; box-shadow: var(--shadow-sm); }
+.bubble.user  { background: var(--user-bg); color: var(--user-text); border-top-right-radius: 4px; box-shadow: 0 8px 20px -8px rgba(99,102,241,0.4); }
 .msg-time { font-size: 10px; color: var(--text-3); padding: 0 4px; }
 
 /* doc card */
-.doc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; margin-top: 8px; }
-.doc-card-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.doc-card { background: #F8FAFC; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; margin-top: 8px; }
+.doc-card-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #FFFFFF; border-bottom: 1px solid var(--border); }
 .doc-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
 .doc-badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
-.doc-badge.match   { background: #dcfce7; color: #16a34a; border: 1px solid #86efac; }
-.doc-badge.deleted { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+.doc-badge.match   { background: rgba(2,132,199,0.08); color: #0284C7; border: 1px solid rgba(2,132,199,0.25); }
+.doc-badge.deleted { background: rgba(0,0,0,0.04); color: var(--text-3); border: 1px solid var(--border); }
 .doc-fields { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
 .doc-field { display: flex; gap: 12px; font-size: 12px; }
 .doc-field-key { color: var(--text-3); min-width: 80px; font-family: var(--mono); }
@@ -107,30 +132,29 @@ html, body { height: 100%; background: var(--bg); color: var(--text-1); font-fam
 
 /* typing */
 .typing-row { display: flex; gap: 10px; align-items: flex-start; }
-.typing-bubble { padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); border-top-left-radius: 4px; display: flex; gap: 4px; align-items: center; box-shadow: var(--shadow-sm); }
-.typing-dot { width: 5px; height: 5px; background: #c4b5fd; border-radius: 50%; animation: tdot 1.2s ease-in-out infinite; }
+.typing-bubble { padding: 12px 14px; background: #FFFFFF; backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: var(--r-lg); border-top-left-radius: 4px; display: flex; gap: 4px; align-items: center; box-shadow: var(--shadow-sm); }
+.typing-dot { width: 5px; height: 5px; background: var(--violet); border-radius: 50%; animation: tdot 1.2s ease-in-out infinite; }
 .typing-dot:nth-child(2){animation-delay:0.18s}
 .typing-dot:nth-child(3){animation-delay:0.36s}
 @keyframes tdot { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
 
 /* tool trace */
-.tool-trace { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; color: var(--text-2); font-family: var(--mono); margin-bottom: 4px; }
-.tool-dot { width: 5px; height: 5px; background: #f59e0b; border-radius: 50%; flex-shrink: 0; }
+.tool-trace { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #F8FAFC; border: 1px solid var(--border); border-radius: 6px; font-size: 11px; color: var(--text-2); font-family: var(--mono); margin-bottom: 4px; }
+.tool-dot { width: 5px; height: 5px; background: var(--violet); border-radius: 50%; flex-shrink: 0; }
 
 /* ── Input area ── */
-.input-area { flex-shrink: 0; padding: 14px 24px 20px; background: var(--panel); border-top: 1px solid var(--border); }
+.input-area { flex-shrink: 0; padding: 14px 24px 20px; background: rgba(255,255,255,0.85); backdrop-filter: blur(14px); border-top: 1px solid var(--border); }
 .input-row { display: flex; gap: 8px; align-items: flex-end; }
-.input-wrap { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-lg); display: flex; align-items: center; padding: 4px 8px 4px 16px; transition: border-color 0.15s, box-shadow 0.15s; }
-.input-wrap:focus-within { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(91,78,240,0.08); background: var(--panel); }
+.input-wrap { flex: 1; background: #FFFFFF; border: 1.5px solid var(--border); border-radius: var(--r-lg); display: flex; align-items: center; padding: 4px 8px 4px 16px; transition: border-color 0.15s, box-shadow 0.15s; }
+.input-wrap:focus-within { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); background: #FFFFFF; }
 #user-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text-1); font-size: 13.5px; font-family: var(--font); padding: 9px 0; resize: none; max-height: 120px; line-height: 1.5; }
 #user-input::placeholder { color: var(--text-3); }
-.send-btn { width: 38px; height: 38px; background: var(--accent); border: none; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; flex-shrink: 0; color: #fff; box-shadow: 0 2px 8px rgba(91,78,240,0.3); }
-.send-btn:hover { background: #4338ca; transform: scale(1.04); }
+.send-btn { width: 38px; height: 38px; background: var(--grad-primary); border: none; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; flex-shrink: 0; color: #fff; box-shadow: 0 6px 16px -4px rgba(99,102,241,0.5); }
+.send-btn:hover { filter: brightness(1.08); transform: scale(1.04); }
 .send-btn:active { transform: scale(0.97); }
-.send-btn:disabled { background: var(--surface); color: var(--text-3); cursor: not-allowed; transform: none; box-shadow: none; }
 .input-hint { font-size: 11px; color: var(--text-3); text-align: center; margin-top: 8px; }
 
-* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgba(99,102,241,0.25) transparent; }
 @media (max-width: 680px) {
   .sidebar { display: none; }
   .messages { padding: 16px 14px; }
@@ -146,11 +170,11 @@ html, body { height: 100%; background: var(--bg); color: var(--text-1); font-fam
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="brand">
-        <div class="brand-mark" style="background:#fff;border:1px solid #e2e8f0;overflow:hidden;padding:2px;">
-          <img src="/static/domo-logo.png" width="30" height="30" style="object-fit:contain;display:block;" alt="Domo"/>
+        <div class="brand-mark">
+          <img src="/static/gwc-logo.jpg" onerror="this.src='/security-ui/gwc-logo.jpg'" width="24" height="24" style="object-fit:contain;display:block;border-radius:6px;" alt="GWC Data Logo"/>
         </div>
         <div>
-          <div class="brand-name">Domo AppDB Agent</div>
+          <div class="brand-name">AppDB Agent</div>
           <div class="brand-sub">Powered by GWC Data</div>
         </div>
       </div>
@@ -159,7 +183,24 @@ html, body { height: 100%; background: var(--bg); color: var(--text-1); font-fam
         New conversation
       </button>
     </div>
-    <div class="sidebar-label">Recent</div>
+
+    <div class="sidebar-label">Navigation</div>
+    <div style="padding:0 10px;display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
+      <a href="/" class="session-item active" style="text-decoration:none;font-weight:600;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Agent Chat
+      </a>
+      <a href="/auditor" onclick="openSecurityAuditor(); return false;" class="session-item" style="text-decoration:none;" title="Open AI Security Auditor Dashboard">
+        <svg width="13" height="14" viewBox="0 0 18 20" fill="none" style="flex-shrink:0;">
+          <path d="M9 1L1 4.5V9.5C1 13.75 4.5 17.75 9 19C13.5 17.75 17 13.75 17 9.5V4.5L9 1Z" stroke="#9B7FFF" stroke-width="1.5" stroke-linejoin="round" fill="rgba(124,92,252,0.15)"/>
+          <circle cx="9" cy="10" r="2" fill="#9B7FFF"/>
+        </svg>
+        Security Auditor
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--violet-glow);margin-left:auto;display:inline-block;"></span>
+      </a>
+    </div>
+
+    <div class="sidebar-label">Recent Sessions</div>
     <div class="session-list" id="session-list">
       <div class="session-item active">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -173,16 +214,17 @@ html, body { height: 100%; background: var(--bg); color: var(--text-1); font-fam
       <div class="topbar-left">
         <div class="status-dot"></div>
         <div>
-          <div class="topbar-title">Domo AppDB Agent</div>
+          <div class="topbar-title">AppDB Agent</div>
           <div class="topbar-sub" id="topbar-sub">Ready to assist</div>
         </div>
       </div>
       <div class="topbar-actions">
-        <button class="security-btn" onclick="openSecurityAuditor()" title="AI Security Auditor">
-          <svg width="15" height="17" viewBox="0 0 18 20" fill="none">
-            <path d="M9 1L1 4.5V9.5C1 13.75 4.5 17.75 9 19C13.5 17.75 17 13.75 17 9.5V4.5L9 1Z" stroke="#ef4444" stroke-width="1.5" stroke-linejoin="round" fill="rgba(239,68,68,0.1)"/>
-            <circle cx="9" cy="10" r="2" fill="#ef4444"/>
+        <button class="security-btn" onclick="openSecurityAuditor()" title="Open AI Security Auditor Dashboard" style="width:auto;padding:0 12px;gap:6px;">
+          <svg width="14" height="16" viewBox="0 0 18 20" fill="none">
+            <path d="M9 1L1 4.5V9.5C1 13.75 4.5 17.75 9 19C13.5 17.75 17 13.75 17 9.5V4.5L9 1Z" stroke="#9B7FFF" stroke-width="1.5" stroke-linejoin="round" fill="rgba(124,92,252,0.15)"/>
+            <circle cx="9" cy="10" r="2" fill="#9B7FFF"/>
           </svg>
+          <span style="font-size:12px;font-weight:600;color:#C9BBFF;">Security Auditor</span>
           <span class="security-pulse"></span>
         </button>
         <button class="icon-btn" onclick="clearChat()" title="Clear chat">
@@ -196,18 +238,18 @@ html, body { height: 100%; background: var(--bg); color: var(--text-1); font-fam
 
     <div class="messages" id="messages">
       <div class="welcome" id="welcome-screen">
-        <div class="welcome-logo" style="background:#fff;border:2px solid #e2e8f0;box-shadow:0 4px 20px rgba(59,178,115,0.22);padding:6px;">
-          <img src="/static/domo-logo.png" width="40" height="40" style="object-fit:contain;display:block;" alt="Domo"/>
+        <div class="welcome-logo">
+          <img src="/static/gwc-logo.jpg" onerror="this.src='/security-ui/gwc-logo.jpg'" width="36" height="36" style="object-fit:contain;display:block;border-radius:8px;" alt="GWC Data Logo"/>
         </div>
-        <h1>Domo AppDB Agent</h1>
-        <p class="welcome-desc">Your intelligent interface to Domo AppDB. Ask anything about your data — I'll find, analyse, and surface exactly what you need.</p>
+        <h1>AppDB Agent</h1>
+        <p class="welcome-desc">Your intelligent interface to your AppDB collection. Ask anything about your data — I'll find, analyse, and surface exactly what you need.</p>
       </div>
     </div>
 
     <div class="input-area">
       <div class="input-row">
         <div class="input-wrap">
-          <textarea id="user-input" placeholder="Ask about your Domo data…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <textarea id="user-input" placeholder="Ask about your data…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         </div>
         <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -232,7 +274,7 @@ async function init() {
     const d = await r.json();
     const prev = localStorage.getItem('server_start');
     if (prev && prev !== d.started) {
-      localStorage.removeItem('domo_session');
+      localStorage.removeItem('agent_session');
       localStorage.removeItem('auditor_findings');
     }
     localStorage.setItem('server_start', d.started);
@@ -241,7 +283,7 @@ async function init() {
 }
 
 function loadHistory() {
-  const saved = localStorage.getItem('domo_session');
+  const saved = localStorage.getItem('agent_session');
   if (!saved) return;
   const s = JSON.parse(saved);
   sessionId = s.id;
@@ -254,7 +296,7 @@ function loadHistory() {
 }
 
 function saveHistory() {
-  localStorage.setItem('domo_session', JSON.stringify({ id: sessionId, history: chatHistory }));
+  localStorage.setItem('agent_session', JSON.stringify({ id: sessionId, history: chatHistory }));
 }
 
 async function sendMessage() {
@@ -277,7 +319,14 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!r.ok) throw new Error(`Server error ${r.status}`);
+    if (!r.ok) {
+      let detail = `Server error ${r.status}`;
+      try {
+        const errData = await r.json();
+        if (errData.detail) detail = errData.detail;
+      } catch {}
+      throw new Error(detail);
+    }
     const d = await r.json();
     sessionId = d.session_id;
     removeTyping(typingId);
@@ -289,7 +338,7 @@ async function sendMessage() {
     updateSessionList(text);
   } catch (err) {
     removeTyping(typingId);
-    renderMessage('agent', `⚠️ Could not reach the agent. Make sure the server is running.\n\n\`${err.message}\``, now(), { error: true });
+    renderMessage('agent', `⚠️ ${err.message}`, now(), { error: true });
   }
   setLoading(false);
 }
@@ -314,7 +363,7 @@ function renderMessage(role, text, time, meta={}, replay=false) {
 
   const bubble = document.createElement('div');
   bubble.className = `bubble ${role}`;
-  if (meta && meta.error) bubble.style.borderColor = '#fca5a5';
+  if (meta && meta.error) bubble.style.borderColor = 'rgba(255,71,87,0.4)';
 
   const docCard = extractDocCard(text);
   if (role === 'agent' && docCard) {
@@ -346,7 +395,7 @@ function formatText(t) {
   if (!t) return '';
   return t
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/`([^`]+)`/g,'<code style="background:#f0f2f8;padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px;">$1</code>')
+    .replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px;">$1</code>')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
     .replace(/\n/g,'<br>');
 }
@@ -436,14 +485,14 @@ function handleKey(e) {
 
 function newChat() {
   sessionId = null; chatHistory = [];
-  localStorage.removeItem('domo_session');
+  localStorage.removeItem('agent_session');
   document.getElementById('messages').innerHTML = `
     <div class="welcome" id="welcome-screen">
-      <div class="welcome-logo" style="background:#fff;border:2px solid #e2e8f0;box-shadow:0 4px 20px rgba(59,178,115,0.22);padding:6px;">
-        <img src="/static/domo-logo.png" width="40" height="40" style="object-fit:contain;display:block;" alt="Domo"/>
+      <div class="welcome-logo">
+        <img src="/static/gwc-logo.jpg" onerror="this.src='/security-ui/gwc-logo.jpg'" width="36" height="36" style="object-fit:contain;display:block;border-radius:8px;" alt="GWC Data Logo"/>
       </div>
-      <h1>Domo AppDB Agent</h1>
-      <p class="welcome-desc">Your intelligent interface to Domo AppDB. Ask anything about your data — I'll find, analyse, and surface exactly what you need.</p>
+      <h1>AppDB Agent</h1>
+      <p class="welcome-desc">Your intelligent interface to your AppDB collection. Ask anything about your data — I'll find, analyse, and surface exactly what you need.</p>
     </div>`;
   updateTopbar();
   document.getElementById('session-list').innerHTML = '<div class="session-item active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Current session</div>';
@@ -456,7 +505,7 @@ function exportChat() {
   const blob = new Blob([lines], { type:'text/plain' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `domo-chat-${Date.now()}.txt`;
+  a.download = `agent-chat-${Date.now()}.txt`;
   a.click();
 }
 
